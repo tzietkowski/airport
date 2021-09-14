@@ -102,16 +102,17 @@ class Airport():
             start_new_thread(self.threaded_client, (Client, ))
 
     def threaded_client(self, connection):
-        connection.send(str.encode('Welcome to the Servern'))
+        connection.send(str.encode('Welcome to the Airport'))
         data = connection.recv(2048)
         print(data.decode('utf-8'))
         while True:
+            time.sleep(1)
+            reply = 'Enter your location.'
+            connection.sendall(str.encode(reply))
             data = connection.recv(2048)
-            time.sleep(20)
-            reply = 'Server Says: ' + data.decode('utf-8')
             if not data:
                 break
-            connection.sendall(str.encode(reply))
+            print(data.decode('utf-8'))
         connection.close()
 
     def stop_server(self) -> None:

@@ -4,6 +4,7 @@ import socket
 from typing import List
 import math
 import numpy as np
+import time
 
 
 class AirPlane():
@@ -13,6 +14,8 @@ class AirPlane():
         self.y_pos = 0
         self.theta = 0
         self.speed = 1
+        self.start_time = time.time()
+        self.target = [50, 50]
         self.flight_number = flight_number
         self.q = np.array([[self.x_pos],
                            [self.y_pos],
@@ -28,17 +31,16 @@ class AirPlane():
 
     def run(self):
         Response = self.client.recv(1024)
-
-        # Welcome
-        welcome = str(f'''Here a flight {str(self.flight_number)},
-                          our location
-                          x:{str(self.x_pos)},
-                          y:{str(self.y_pos)}.
-                          We ask for permission to land''')
-        self.client.send(str.encode(welcome))
+        print(Response.decode('utf-8'))
         while True:
-            Input = input('Say Something: ')
-            self.client.send(str.encode(Input))
+            welcome = str(f'''
+            \nHere a flight {str(self.flight_number)},
+            \nOur location x:{str(self.x_pos)}, y:{str(self.y_pos)}.
+            \nWe ask for permission to land''')
+            time.sleep(1)
+            self.fly(self.target, int(self.start_time - time.time()))
+            print(welcome)
+            self.client.sendall(str.encode(welcome))
             Response = self.client.recv(1024)
             print(Response.decode('utf-8'))
 
