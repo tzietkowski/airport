@@ -1,4 +1,6 @@
+#!/usr/bin/python3
 """AIRPLATE"""
+import socket
 from typing import List
 import math
 import numpy as np
@@ -6,14 +8,39 @@ import numpy as np
 
 class AirPlane():
 
-    def __init__(self) -> None:
+    def __init__(self, flight_number: int) -> None:
         self.x_pos = 0
         self.y_pos = 0
         self.theta = 0
         self.speed = 1
+        self.flight_number = flight_number
         self.q = np.array([[self.x_pos],
                            [self.y_pos],
                            [self.theta]])
+        self.client = socket.socket()
+        try:
+            self.client.connect(('127.0.0.1', 65432))
+            self.run()
+        except socket.error as e:
+            print(f'Server error: {str(e)}')
+        finally:
+            self.disconnect()
+
+    def run(self):
+        Response = self.client.recv(1024)
+
+        # Welcome
+        welcome = str(f'''Here a flight {str(self.flight_number)},
+                          our location
+                          x:{str(self.x_pos)},
+                          y:{str(self.y_pos)}.
+                          We ask for permission to land''')
+        self.client.send(str.encode(welcome))
+        while True:
+            Input = input('Say Something: ')
+            self.client.send(str.encode(Input))
+            Response = self.client.recv(1024)
+            print(Response.decode('utf-8'))
 
     def angle_to_target(self, target: List) -> float:
         "Angle to the target"
@@ -40,10 +67,9 @@ class AirPlane():
 
         Vx, omega = self.control_speed(target)
 
-        self.q = self.q + Vx * (np.array([[-math.cos(self.theta)],
-                                           [math.sin(self.theta)],
-                                           [0]])
-                        + np.array([[0], [0], [1]]) * omega) * Ts
+        self.q = self.q + Vx * (np.array([[
+            -math.cos(self.theta)], [math.sin(self.theta)], [0]])
+            + np.array([[0], [0], [1]]) * omega) * Ts
         (self.x_pos, self.y_pos, self.theta) = self.q
 
     def get_position(self) -> List:
@@ -51,20 +77,11 @@ class AirPlane():
 
         return self.q
 
+    def disconnect(self) -> None:
+        """Function disconnect to the serwer"""
 
-# samolot = AirPlane()
-# print(samolot.get_position())
+        print('Closing connection')
+        self.client.close()
 
 
-# cel = [100, 100]
-
-# def gen_time():
-#     start = 0
-#     while True:
-#         yield float(start)
-#         start += 0.1
-
-# a = gen_time()
-# for x in range(100):
-#     samolot.fly(cel, next(a))
-#     print(samolot.get_position())
+AirPlane(12)
