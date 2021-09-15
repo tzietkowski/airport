@@ -5,18 +5,20 @@ from typing import List
 import math
 import numpy as np
 import time
+from random import randint
 
 
 class AirPlane():
 
     def __init__(self, flight_number: int) -> None:
-        self.x_pos = 0
-        self.y_pos = 0
+        self.x_pos = randint(0, 10000)
+        self.y_pos = randint(0, 10000)
         self.theta = 0
         self.speed = 1
         self.start_time = time.time()
         self.target = [50, 50]
         self.flight_number = flight_number
+        self.last_angle = 0 
         self.q = np.array([[self.x_pos],
                            [self.y_pos],
                            [self.theta]])
@@ -31,7 +33,7 @@ class AirPlane():
 
     def run(self):
         Response = self.client.recv(1024)
-        print(Response.decode('utf-8'))
+        # print(Response.decode('utf-8'))
         while True:
             welcome = str(f'''
             \nHere a flight {str(self.flight_number)},
@@ -42,16 +44,31 @@ class AirPlane():
             print(welcome)
             self.client.sendall(str.encode(welcome))
             Response = self.client.recv(1024)
+            self.the_circle()
             print(Response.decode('utf-8'))
 
     def angle_to_target(self, target: List) -> float:
         "Angle to the target"
 
-        return math.atan2(target[1] - self.y_pos, -(target[0] - self.x_pos))
+        fi = math.atan2(target[1] - self.y_pos, -(target[0] - self.x_pos))
+        fi_1 = math.atan2(math.sin(self.last_angle), math.cos(self.last_angle))
+        fi_t_delta = fi - fi_1
+        if fi_t_delta > math.pi:
+            fi_delta = fi_t_delta - (2 * math.pi)
+        else:
+            if fi_t_delta < -math.pi:
+                fi_delta = fi_t_delta + (2 * math.pi)
+            else:
+                fi_delta = fi_t_delta
+        fi = self.last_angle + fi_delta
+        self.last_angle = fi
+        print(fi)
+        return fi
+        # return math.atan2(target[1] - self.y_pos, -(target[0] - self.x_pos))
 
     def speed_to_target(self, target: List) -> np.ndarray:
         "Speed to point calculation"
-
+        print(self.angle_to_target(target))
         return self.speed * np.array(
             [[math.cos(self.angle_to_target(target))],
              [math.sin(self.angle_to_target(target))]])
@@ -64,14 +81,14 @@ class AirPlane():
         inv_P = np.linalg.inv(P)
         return np.dot(inv_P, self.speed_to_target(target))
 
-    def fly(self, target: List, Ts: float):
+    def fly(self, target: List):
         "Calculate position change"
 
         Vx, omega = self.control_speed(target)
 
         self.q = self.q + Vx * (np.array([[
             -math.cos(self.theta)], [math.sin(self.theta)], [0]])
-            + np.array([[0], [0], [1]]) * omega) * Ts
+            + np.array([[0], [0], [1]]) * omega)
         (self.x_pos, self.y_pos, self.theta) = self.q
 
     def get_position(self) -> List:
@@ -84,6 +101,12 @@ class AirPlane():
 
         print('Closing connection')
         self.client.close()
+
+    def the_circle(self):
+        """Waiting for permission to land """
+
+        pozycja_now = self.get_position()
+        print(pozycja_now)
 
 
 AirPlane(12)
