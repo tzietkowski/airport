@@ -10,13 +10,21 @@ from random import randint
 
 class AirPlane():
 
+    """
+    0: 'welcome'
+    1: 'circle'
+    2: 'landing'
+    3: 'destroyed'
+    """
+
     def __init__(self, flight_number: int) -> None:
         self.x_pos = randint(0, 1000)
         self.y_pos = randint(0, 1000)
         self.theta = 0
         self.__speed = 50
+        self.state = 0
         self.start_time = time.time()
-        self.__target = (50, 50)
+        self.__target = (randint(0, 1000), randint(0, 1000))
         self.flight_number = flight_number
         self.__last_angle = 0
         self.__the_circle_point_number = 0
@@ -33,20 +41,39 @@ class AirPlane():
             self.disconnect()
 
     def run(self):
-        Response = self.client.recv(1024)
-        # print(Response.decode('utf-8'))
-        while True:
-            welcome = str(f'''
-            \nHere a flight {str(self.flight_number)},
-            \nOur location x:{str(self.x_pos)}, y:{str(self.y_pos)}.
-            \nWe ask for permission to land''')
-            time.sleep(1)
+        "Run fly"
+
+        while self.state != 3:
+            self.communication_with_the_tower()
             self.fly(self.__target)
-            #print(welcome)
-            self.client.sendall(str.encode(welcome))
-            Response = self.client.recv(1024)
-            self.the_circle()
+            #self.the_circle()
             #print(Response.decode('utf-8'))
+        return
+
+    def communication_with_the_tower(self):
+        "Communication with the tower"
+
+        if self.state == 0:
+            message = str(f'Here a flight {str(self.flight_number)}')
+            if self.answer_from_the_tower(message) == 'WELCOME':
+                self.state = 1
+        if self.state == 1:
+            message = str(f'Here a flight {str(self.flight_number)}')
+            if self.answer_from_the_tower(message) == 'NO':
+                self.state = 2
+        if self.state == 2:
+            message = str(f'Here a flight {str(self.flight_number)}')
+            if self.answer_from_the_tower(message) == 'YES':
+                self.state = 3
+        if self.state == 3:
+            self.disconnect()
+            return
+
+    def answer_from_the_tower(self, answer: str) -> str:
+        "Answer from the tower"
+
+        self.client.sendall(str.encode(answer))
+        return self.client.recv(1024).decode('utf-8')
 
     def angle_to_target(self, target: List) -> float:
         "Angle to the target"
@@ -90,6 +117,7 @@ class AirPlane():
             -math.cos(self.theta)], [math.sin(self.theta)], [0]])
             + np.array([[0], [0], [1]]) * omega)
         (self.x_pos, self.y_pos, self.theta) = self.q
+        print(self.get_position(), self.__target)
 
     def get_position(self) -> List:
         "get date position samolotu"
@@ -99,7 +127,6 @@ class AirPlane():
     def disconnect(self) -> None:
         "Function disconnect to the serwer"
 
-        print('Closing connection')
         self.client.close()
 
     def the_circle(self) -> None:
@@ -113,7 +140,7 @@ class AirPlane():
             self.__the_circle_point_number += 1
             if self.__the_circle_point_number == len(circle_point):
                 self.__the_circle_point_number = 0
-        print(pozycja_now, self.__target)
+        
 
     def landing(self, approach: tuple, end_point: tuple) -> None:
         "Landing procedure "
