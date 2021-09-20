@@ -18,19 +18,22 @@ class AirPlane():
     """
 
     def __init__(self, flight_number: int) -> None:
-        self.x_pos = randint(0, 1000)
-        self.y_pos = randint(0, 1000)
-        self.theta = 0
+        self.__x_pos = randint(0, 1000)
+        self.__y_pos = randint(0, 1000)
+        self.__theta = 0
         self.__speed = 50
-        self.state = 0
-        self.start_time = time.time()
+        self.__state = 0
+        self.__start_time = time.time()
         self.__target = (randint(0, 1000), randint(0, 1000))
-        self.flight_number = flight_number
+        self.__flight_number = flight_number
         self.__last_angle = 0
+        self.__first_point = [0, 0]
+        self.__second_point = [0, 0]
         self.__the_circle_point_number = 0
-        self.q = np.array([[self.x_pos],
-                           [self.y_pos],
-                           [self.theta]])
+        self.__the_landing_point_number = 0
+        self.q = np.array([[self.__x_pos],
+                           [self.__y_pos],
+                           [self.__theta]])
         self.client = socket.socket()
         try:
             self.client.connect(('127.0.0.1', 65432))
@@ -43,29 +46,39 @@ class AirPlane():
     def run(self):
         "Run fly"
 
-        while self.state != 3:
+        while self.__state != 3:
             self.communication_with_the_tower()
-            self.fly(self.__target)
-            #self.the_circle()
-            #print(Response.decode('utf-8'))
+            self.fly()
+            if self.__state == 1:
+                self.the_circle()
+            if self.__state == 2:
+                self.landing()
         return
 
     def communication_with_the_tower(self):
         "Communication with the tower"
 
-        if self.state == 0:
-            message = str(f'Here a flight {str(self.flight_number)}')
+        if self.__state == 0:
+            message = str(f'Here a flight {str(self.__flight_number)}')
             if self.answer_from_the_tower(message) == 'WELCOME':
-                self.state = 1
-        if self.state == 1:
-            message = str(f'Here a flight {str(self.flight_number)}')
+                self.__state = 1
+            if self.answer_from_the_tower(message) == 'KILL':
+                self.__state = 3
+        if self.__state == 1:
+            message = str(f'Asked for permission to land')
             if self.answer_from_the_tower(message) == 'NO':
-                self.state = 2
-        if self.state == 2:
-            message = str(f'Here a flight {str(self.flight_number)}')
+                self.__state = 1
             if self.answer_from_the_tower(message) == 'YES':
-                self.state = 3
-        if self.state == 3:
+                self.__state = 2
+            if self.answer_from_the_tower(message) == 'KILL':
+                self.__state = 3
+        if self.__state == 2:
+            message = str(f'We land')
+            if self.answer_from_the_tower(message) == 'YES':
+                self.__state = 3
+            if self.answer_from_the_tower(message) == 'KILL':
+                self.__state = 3
+        if self.__state == 3:
             self.disconnect()
             return
 
@@ -78,7 +91,8 @@ class AirPlane():
     def angle_to_target(self, target: List) -> float:
         "Angle to the target"
 
-        angle = math.atan2(target[1] - self.y_pos, -(target[0] - self.x_pos))
+        angle = math.atan2(target[1] - self.__y_pos, -
+                           (target[0] - self.__x_pos))
         angle_1 = math.atan2(math.sin(self.__last_angle),
                              math.cos(self.__last_angle))
         angle_t_delta = angle - angle_1
@@ -103,20 +117,20 @@ class AirPlane():
     def control_speed(self, target: List) -> np.ndarray:
         "Control calculation Vx- speed , Omgega - angular velocity"
 
-        P = np.array([[math.cos(self.theta), -math.sin(self.theta)],
-                      [math.sin(self.theta), math.cos(self.theta)]])
+        P = np.array([[math.cos(self.__theta), -math.sin(self.__theta)],
+                      [math.sin(self.__theta), math.cos(self.__theta)]])
         inv_P = np.linalg.inv(P)
         return np.dot(inv_P, self.speed_to_target(target))
 
-    def fly(self, target: List) -> None:
+    def fly(self) -> None:
         "Calculate position change"
 
-        Vx, omega = self.control_speed(target)
+        Vx, omega = self.control_speed(self.__target)
 
         self.q = self.q + Vx * (np.array([[
-            -math.cos(self.theta)], [math.sin(self.theta)], [0]])
+            -math.cos(self.__theta)], [math.sin(self.__theta)], [0]])
             + np.array([[0], [0], [1]]) * omega)
-        (self.x_pos, self.y_pos, self.theta) = self.q
+        (self.__x_pos, self.__y_pos, self.__theta) = self.q
         print(self.get_position(), self.__target)
 
     def get_position(self) -> List:
@@ -133,19 +147,22 @@ class AirPlane():
         "Waiting for permission to land "
 
         circle_point = [(100, 100), (100, 900), (900, 900), (900, 100)]
-        
+
         self.__target = circle_point[self.__the_circle_point_number]
-        pozycja_now = self.get_position()
-        if abs(pozycja_now[0] - self.__target[0]) < 50 and abs(pozycja_now[1] - self.__target[1]) < 50:
+        if abs(self.get_position()[0] - self.__target[0]) < 50 and abs(self.get_position()[1] - self.__target[1]) < 50:
             self.__the_circle_point_number += 1
             if self.__the_circle_point_number == len(circle_point):
                 self.__the_circle_point_number = 0
-        
 
-    def landing(self, approach: tuple, end_point: tuple) -> None:
+    def landing(self) -> None:
         "Landing procedure "
 
-        pass
+        landing_point = [self.__first_point, self.__second_point]
 
+        self.__target = landing_point[self.__the_landing_point_number]
+        if abs(self.get_position()[0] - self.__target[0]) < 5 and abs(self.get_position()[1] - self.__target[1]) < 5:
+            self.__the_landing_point_number += 1
+            if self.__the_landing_point_number == 2:
+                self.disconnect()
 
 AirPlane(12)
