@@ -7,7 +7,7 @@ import numpy as np
 import time
 from random import randint
 
-
+print('Hello')
 class AirPlane():
 
     """
