@@ -48,7 +48,7 @@ class AirPlane():
 
         while self.__state != 3:
             self.communication_with_the_tower()
-            self.fly()
+            if self.__state != 3:self.fly()
             if self.__state == 1:
                 self.the_circle()
             if self.__state == 2:
@@ -59,34 +59,35 @@ class AirPlane():
         "Communication with the tower"
 
         if self.__state == 0:
-            message = str(f'Here a flight {str(self.__flight_number)}')
-            if self.answer_from_the_tower(message) == 'WELCOME':
+            ans = self.answer_from_the_tower(str(f'Here a flight {str(self.__flight_number)}'))
+            if ans == 'WELCOME':
                 self.__state = 1
-            if self.answer_from_the_tower(message) == 'KILL':
+            elif ans == 'KILL':
                 self.__state = 3
         if self.__state == 1:
-            message = str(f'Asked for permission to land')
-            if self.answer_from_the_tower(message) == 'NO':
+            ans = self.answer_from_the_tower(str(f'Asked for permission to land'))
+            if ans == 'NO':
                 self.__state = 1
-            if self.answer_from_the_tower(message) == 'YES':
+            elif ans == 'YES':
                 self.__state = 2
-            if self.answer_from_the_tower(message) == 'KILL':
+            elif ans == 'KILL':
                 self.__state = 3
         if self.__state == 2:
-            message = str(f'We land')
-            if self.answer_from_the_tower(message) == 'YES':
+            ans = self.answer_from_the_tower(str(f'We land'))
+            if ans == 'YES':
                 self.__state = 3
-            if self.answer_from_the_tower(message) == 'KILL':
+            elif ans == 'KILL':
                 self.__state = 3
         if self.__state == 3:
             self.disconnect()
-            return
 
     def answer_from_the_tower(self, answer: str) -> str:
         "Answer from the tower"
 
         self.client.sendall(str.encode(answer))
-        return self.client.recv(1024).decode('utf-8')
+        ans = self.client.recv(1024).decode('utf-8')
+        print(ans)
+        return ans
 
     def angle_to_target(self, target: List) -> float:
         "Angle to the target"
@@ -165,4 +166,4 @@ class AirPlane():
             if self.__the_landing_point_number == 2:
                 self.disconnect()
 
-AirPlane(12)
+AirPlane(randint(0, 1000))

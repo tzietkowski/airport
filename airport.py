@@ -102,14 +102,21 @@ class Airport():
             start_new_thread(self.threaded_client, (Client, ))
 
     def threaded_client(self, connection):
-        connection.send(str.encode('Welcome to the Airport'))
+
         data = connection.recv(2048)
         print(data.decode('utf-8'))
+        connection.send(str.encode('WELCOME'))
+
         while True:
             time.sleep(1)
-            reply = 'Enter your location.'
-            connection.sendall(str.encode(reply))
             data = connection.recv(2048)
+            if data.decode('utf-8') == 'Asked for permission to land':
+                print('poproszono o ladowanie')
+                reply = 'KILL'
+            else:
+                reply = 'Enter your location.'
+            connection.sendall(str.encode(reply))
+            
             if not data:
                 break
             print(data.decode('utf-8'))
